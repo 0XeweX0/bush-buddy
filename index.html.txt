@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Bush Buddy App + Gemini Pro AI</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --forest-dark: #0a0f0a;
+            --accent-green: #22c55e;
+            --ui-bg: rgba(0, 0, 0, 0.9);
+        }
+
+        body { 
+            background: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.95)), 
+                        url('https://images.pexels.com/photos/917494/pexels-photo-917494.jpeg?auto=compress&cs=tinysrgb&w=1600') center/cover fixed;
+            background-color: #050805; 
+            color: #ffffff; 
+            font-family: 'Montserrat', sans-serif;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        .app-container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .scrollable-content {
+            flex: 1;
+            overflow-y: auto;
+            padding-bottom: 120px;
+            scrollbar-width: none;
+        }
+        .scrollable-content::-webkit-scrollbar { display: none; }
+
+        .sotf-backpack {
+            background: rgba(26, 21, 18, 0.95) url('https://www.transparenttextures.com/patterns/leather.png');
+            box-shadow: inset 0 0 100px rgba(0,0,0,1), 0 20px 50px rgba(0,0,0,0.9);
+            border: 4px solid #3d3129;
+            backdrop-blur: 10px;
+        }
+
+        .sotf-slot {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.5);
+            transition: all 0.2s ease;
+        }
+        
+        .sotf-slot:active {
+            transform: scale(0.95);
+            background: rgba(34, 197, 94, 0.1);
+        }
+
+        .hub-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-blur: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .page-transition {
+            animation: slideUp 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); filter: blur(10px); }
+            to { opacity: 1; transform: translateY(0); filter: blur(0); }
+        }
+
+        .radar-pulse {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 2px solid var(--accent-green);
+            animation: ping-slow 3s infinite;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        @keyframes ping-slow {
+            0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.5; }
+            100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
+        }
+
+        #ai-response-text {
+            white-space: pre-wrap;
+        }
+
+        .settings-input {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            padding: 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            width: 100%;
+            outline: none;
+        }
+
+        .settings-input:focus {
+            border-color: var(--accent-green);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        
+        <header class="p-4 z-[110] flex justify-between items-center bg-black/40 backdrop-blur-xl border-b border-white/5">
+            <div onclick="switchTab('hub')" class="flex flex-col cursor-pointer group">
+                <h1 class="font-black italic text-2xl text-white uppercase tracking-tighter">
+                    Bush <span class="text-green-500">Buddy</span>
+                </h1>
+                <div class="flex items-center gap-1.5 text-[10px] font-black text-green-400 uppercase tracking-widest">
+                    <span id="coords-display">GPS SYNCING...</span>
+                </div>
+            </div>
+
+            <div class="bg-green-500/5 px-5 py-2.5 rounded-2xl border border-green-500/20 flex flex-col items-center min-w-[120px]">
+                <span class="text-[9px] uppercase font-black text-green-500/60 mb-0.5">Капітал</span>
+                <span id="budget-display" class="text-2xl font-black text-white">0₴</span>
+            </div>
+        </header>
+
+        <div class="scrollable-content px-6 pt-8">
+
+            <!-- ЕКРАН: ХАБ -->
+            <section id="sec-hub" class="page-transition space-y-6">
+                <div onclick="askAI('quick_scan')" class="bg-black/60 border border-green-500/30 p-6 rounded-[2rem] cursor-pointer active:scale-95 transition-all relative overflow-hidden backdrop-blur-md">
+                    <div class="radar-pulse"></div>
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-[11px] font-black text-green-400 uppercase tracking-widest">✨ AI Радар 3.0</span>
+                        <div class="flex gap-2">
+                             <div id="ai-active-indicator" class="hidden w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                             <i class="fas fa-brain text-green-500"></i>
+                        </div>
+                    </div>
+                    <p id="radar-text" class="text-[12px] text-gray-300 italic">"Натисніть для миттєвого аналізу локації через Gemini API..."</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div onclick="switchTab('shop')" class="hub-card rounded-[2rem] p-6 flex flex-col items-center gap-3 cursor-pointer">
+                        <i class="fas fa-shopping-cart text-xl text-green-500"></i>
+                        <span class="font-black uppercase text-[10px]">Ринок</span>
+                    </div>
+                    <div onclick="switchTab('inventory')" class="hub-card rounded-[2rem] p-6 flex flex-col items-center gap-3 cursor-pointer">
+                        <i class="fas fa-backpack text-xl text-green-500"></i>
+                        <span class="font-black uppercase text-[10px]">Рюкзак</span>
+                    </div>
+                </div>
+
+                <div class="bg-gradient-to-br from-indigo-900/40 to-black/60 p-6 rounded-[2.5rem] border border-indigo-500/20">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xs font-black uppercase tracking-widest text-indigo-400">✨ План Виживання</h3>
+                        <button onclick="askAI('survival_strategy')" class="text-[10px] bg-indigo-600 px-3 py-1 rounded-full font-bold">ОНОВИТИ</button>
+                    </div>
+                    <div id="strategy-box" class="text-[11px] text-gray-400 italic leading-relaxed">
+                        Зачекайте, AI формує стратегію на основі вашого спорядження...
+                    </div>
+                </div>
+            </section>
+
+            <!-- ЕКРАН: МАГАЗИН -->
+            <section id="sec-shop" class="hidden page-transition">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-black uppercase italic tracking-tighter">Склад спорядження</h2>
+                    <button onclick="huntForMoney()" class="bg-green-600 px-4 py-2 rounded-xl text-[10px] font-bold">ЗНАЙТИ ГРОШІ</button>
+                </div>
+                <div id="shop-items" class="space-y-4"></div>
+            </section>
+
+            <!-- ЕКРАН: РЮКЗАК -->
+            <section id="sec-inventory" class="hidden page-transition">
+                <div class="sotf-backpack rounded-[2.5rem] p-6 min-h-[440px] flex flex-col border-2 border-green-900/30">
+                    <div class="flex justify-between items-center mb-6 bg-black/60 p-4 rounded-2xl border border-white/5">
+                        <div class="flex flex-col">
+                            <span class="text-[9px] font-black text-gray-500 uppercase">Поточна Вага</span>
+                            <span id="weight-display" class="text-lg font-black">0.0 / 15кг</span>
+                        </div>
+                        <div class="w-20 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                            <div id="weight-bar" class="h-full bg-green-500 transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div id="backpack-grid" class="grid grid-cols-4 gap-3 flex-1"></div>
+                    <button onclick="clearPack()" class="mt-6 py-4 bg-red-500/10 text-red-500 text-[10px] font-black uppercase rounded-xl border border-red-500/20 active:bg-red-500/20">Очистити рюкзак</button>
+                </div>
+            </section>
+
+            <!-- ЕКРАН: AI ЛАБОРАТОРІЯ -->
+            <section id="sec-ai" class="hidden page-transition space-y-6">
+                <div class="bg-black/60 p-8 rounded-[2.5rem] border border-blue-500/20 backdrop-blur-xl">
+                    <div class="text-center mb-8">
+                        <i class="fas fa-microchip text-4xl text-blue-500 mb-4 animate-pulse"></i>
+                        <h2 class="text-2xl font-black italic uppercase">Gemini Lab</h2>
+                        <p class="text-[10px] text-blue-400 font-bold tracking-widest">НЕЙРОННИЙ ПРЕДИКТОР</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-3">
+                        <button onclick="askAI('identify_nature')" class="w-full bg-white/5 p-5 rounded-2xl border border-white/5 text-left active:scale-95 transition-all">
+                            <p class="text-[11px] font-black text-blue-400 mb-1">✨ СКАНЕР РОСЛИН</p>
+                            <p class="text-[10px] text-gray-500">Розпізнати невідомий об'єкт за описом</p>
+                        </button>
+                        <button onclick="askAI('audio_brief')" class="w-full bg-white/5 p-5 rounded-2xl border border-white/5 text-left active:scale-95 transition-all">
+                            <p class="text-[11px] font-black text-blue-400 mb-1">✨ ГОЛОСОВИЙ БРИФІНГ</p>
+                            <p class="text-[10px] text-gray-500">Озвучити поточний стан виживання</p>
+                        </button>
+                    </div>
+
+                    <div id="ai-main-container" class="mt-8 hidden">
+                        <div class="p-6 bg-blue-900/20 rounded-3xl border border-blue-500/30 text-[12px] italic text-gray-200" id="ai-response-text"></div>
+                        <div id="audio-player" class="mt-4 hidden">
+                            <button onclick="playAIAudio()" class="w-full py-3 bg-blue-600 rounded-xl font-black text-xs uppercase flex items-center justify-center gap-2">
+                                <i class="fas fa-play"></i> Слухати відповідь
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ✨ ЕКРАН: НАЛАШТУВАННЯ -->
+            <section id="sec-settings" class="hidden page-transition space-y-6">
+                <div class="bg-black/80 p-8 rounded-[2.5rem] border border-white/10 backdrop-blur-3xl">
+                    <h2 class="text-xl font-black uppercase italic mb-6 text-green-500">⚙️ Налаштування</h2>
+                    
+                    <div class="space-y-6">
+                        <!-- ЗМІНА КАПІТАЛУ (НОВЕ) -->
+                        <div class="p-4 bg-green-500/5 border border-green-500/20 rounded-2xl">
+                            <label class="text-[10px] font-black text-green-500 uppercase mb-2 block">💸 Поточний Капітал (₴)</label>
+                            <div class="flex gap-2">
+                                <input type="number" id="set-budget" class="settings-input flex-1" placeholder="5000" onchange="updateBudgetFromSettings()">
+                                <button onclick="updateBudgetFromSettings()" class="bg-green-600 px-4 rounded-xl text-[10px] font-bold">ОК</button>
+                            </div>
+                        </div>
+
+                        <!-- Ім'я -->
+                        <div>
+                            <label class="text-[10px] font-black text-gray-500 uppercase mb-2 block">Позивний виживальника</label>
+                            <input type="text" id="set-username" class="settings-input" placeholder="Наприклад: Ведмідь" onchange="saveSettings()">
+                        </div>
+
+                        <!-- Рівень складності -->
+                        <div>
+                            <label class="text-[10px] font-black text-gray-500 uppercase mb-2 block">Рівень виживання</label>
+                            <select id="set-difficulty" class="settings-input" onchange="saveSettings()">
+                                <option value="easy">Новачок (більше порад)</option>
+                                <option value="medium">Експерт (збалансовано)</option>
+                                <option value="hard">Hardcore (мінімум слів)</option>
+                            </select>
+                        </div>
+
+                        <!-- Голос AI -->
+                        <div>
+                            <label class="text-[10px] font-black text-gray-500 uppercase mb-2 block">Голос Gemini AI</label>
+                            <select id="set-voice" class="settings-input" onchange="saveSettings()">
+                                <option value="Puck">Puck (Чоловічий)</option>
+                                <option value="Charon">Charon (Глибокий)</option>
+                                <option value="Kore">Kore (Жіночий)</option>
+                                <option value="Zephyr">Zephyr (Спокійний)</option>
+                            </select>
+                        </div>
+
+                        <!-- GPS Симуляція -->
+                        <div class="flex items-center justify-between p-4 bg-white/5 rounded-2xl">
+                            <div>
+                                <p class="text-xs font-bold">Симуляція GPS</p>
+                                <p class="text-[9px] text-gray-500 uppercase">Оновлювати координати автоматично</p>
+                            </div>
+                            <input type="checkbox" id="set-gps" class="w-5 h-5 accent-green-500" checked onchange="saveSettings()">
+                        </div>
+
+                        <button onclick="resetData()" class="w-full py-4 text-red-500 text-[10px] font-black uppercase border border-red-500/20 rounded-xl mt-4">Скинути всі дані</button>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <nav class="fixed bottom-0 left-0 w-full bg-black/90 backdrop-blur-3xl border-t border-white/5 px-6 py-6 flex justify-around items-center z-[120]">
+            <button onclick="switchTab('hub')" class="flex flex-col items-center gap-1 text-gray-500 nav-btn" id="btn-hub">
+                <i class="fas fa-home"></i><span class="text-[8px] font-black uppercase">Хаб</span>
+            </button>
+            <button onclick="switchTab('shop')" class="flex flex-col items-center gap-1 text-gray-500 nav-btn" id="btn-shop">
+                <i class="fas fa-store"></i><span class="text-[8px] font-black uppercase">Магазин</span>
+            </button>
+            <button onclick="switchTab('ai')" class="flex flex-col items-center gap-1 text-blue-500 nav-btn" id="btn-ai">
+                <i class="fas fa-wand-magic-sparkles text-xl"></i><span class="text-[8px] font-black uppercase">✨ AI</span>
+            </button>
+            <button onclick="switchTab('inventory')" class="flex flex-col items-center gap-1 text-gray-500 nav-btn" id="btn-inventory">
+                <i class="fas fa-box"></i><span class="text-[8px] font-black uppercase">Багаж</span>
+            </button>
+            <button onclick="switchTab('settings')" class="flex flex-col items-center gap-1 text-gray-500 nav-btn" id="btn-settings">
+                <i class="fas fa-cog"></i><span class="text-[8px] font-black uppercase">Опції</span>
+            </button>
+        </nav>
+    </div>
+
+    <script>
+        const apiKey = "";
+        
+        const products = [
+            { id: 1, name: "Ніж Mora", price: 850, weight: 0.3, icon: "fa-screwdriver-wrench", type: "weapon" },
+            { id: 2, name: "Сокира Husq", price: 2100, weight: 1.2, icon: "fa-hammer", type: "tool" },
+            { id: 3, name: "Тент 3x3", price: 1200, weight: 0.9, icon: "fa-campground", type: "shelter" },
+            { id: 4, name: "Кресало", price: 250, weight: 0.1, icon: "fa-fire", type: "utility" },
+            { id: 5, name: "Фільтр води", price: 980, weight: 0.1, icon: "fa-faucet-drip", type: "utility" },
+            { id: 6, name: "Пальник", price: 1500, weight: 0.4, icon: "fa-hot-tub-person", type: "tool" }
+        ];
+
+        let state = {
+            budget: 5000,
+            inventory: [],
+            coords: "48.5132 N, 32.2611 E",
+            activeAudioBlob: null,
+            settings: {
+                username: "Виживальник",
+                difficulty: "medium",
+                voice: "Puck",
+                gpsEnabled: true
+            }
+        };
+
+        window.onload = () => {
+            loadSettings();
+            renderShop();
+            renderBackpack();
+            updateUI();
+            switchTab('hub');
+        };
+
+        function switchTab(id) {
+            ['hub', 'shop', 'inventory', 'ai', 'settings'].forEach(s => {
+                const sec = document.getElementById('sec-' + s);
+                if(sec) sec.classList.add('hidden');
+            });
+            document.getElementById('sec-' + id).classList.remove('hidden');
+            
+            document.querySelectorAll('.nav-btn').forEach(b => {
+                b.classList.remove('text-green-500', 'text-blue-500');
+                b.classList.add('text-gray-500');
+            });
+
+            const activeBtn = document.getElementById('btn-' + id);
+            if(id === 'ai') activeBtn.classList.replace('text-gray-500', 'text-blue-500');
+            else activeBtn.classList.replace('text-gray-500', 'text-green-500');
+
+            // Оновити інпут бюджету при переході на вкладку налаштувань
+            if(id === 'settings') {
+                document.getElementById('set-budget').value = state.budget;
+            }
+        }
+
+        // --- AI API LOGIC ---
+
+        async function apiCall(prompt) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+                const data = await response.json();
+                return data.candidates?.[0]?.content?.parts?.[0]?.text || "Помилка зв'язку";
+            } catch (e) { return "AI недоступний"; }
+        }
+
+        async function askAI(type) {
+            const indicator = document.getElementById('ai-active-indicator');
+            indicator?.classList.remove('hidden');
+            
+            try {
+                const items = state.inventory.map(i => i.name).join(", ") || "порожній рюкзак";
+                const userContext = `Користувач: ${state.settings.username}, Рівень: ${state.settings.difficulty}.`;
+                
+                if (type === 'quick_scan') {
+                    const res = await apiCall(`${userContext} Оціни готовність до виживання: ${items}. 1 коротке речення, укр.`);
+                    document.getElementById('radar-text').innerText = res;
+                } 
+                else if (type === 'survival_strategy') {
+                    const res = await apiCall(`${userContext} Надай 3 пункти стратегії виживання з набором: ${items}. Мова: українська.`);
+                    document.getElementById('strategy-box').innerText = res;
+                }
+                else if (type === 'identify_nature') {
+                    showAIResult();
+                    const res = await apiCall(`${userContext} Чи безпечна рослина з червоними ягодами в лісі України? Коротко.`);
+                    typeText(res);
+                }
+                else if (type === 'audio_brief') {
+                    showAIResult();
+                    typeText("Генерація аудіо-брифінгу...");
+                    const speechText = `Привіт, ${state.settings.username}. Ваш бюджет ${state.budget} гривень. Ви несете ${calculateWeight()} кілограм.`;
+                    await generateSpeech(speechText);
+                    typeText("Аудіо готове до прослуховування.");
+                }
+            } finally { indicator?.classList.add('hidden'); }
+        }
+
+        async function generateSpeech(text) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+            const payload = {
+                contents: [{ parts: [{ text: text }] }],
+                generationConfig: {
+                    responseModalities: ["AUDIO"],
+                    speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: state.settings.voice } } }
+                }
+            };
+            try {
+                const response = await fetch(url, { method: 'POST', body: JSON.stringify(payload) });
+                const data = await response.json();
+                const base64Audio = data.candidates[0].content.parts[0].inlineData.data;
+                const audioData = atob(base64Audio);
+                const arrayBuffer = new ArrayBuffer(audioData.length);
+                const view = new Uint8Array(arrayBuffer);
+                for (let i = 0; i < audioData.length; i++) view[i] = audioData.charCodeAt(i);
+                const wavBuffer = createWavFile(arrayBuffer, 24000);
+                state.activeAudioBlob = URL.createObjectURL(new Blob([wavBuffer], { type: 'audio/wav' }));
+                document.getElementById('audio-player').classList.remove('hidden');
+            } catch (e) { console.error(e); }
+        }
+
+        function createWavFile(pcmBuffer, sampleRate) {
+            const buffer = new ArrayBuffer(44 + pcmBuffer.byteLength);
+            const view = new DataView(buffer);
+            const writeString = (offset, string) => { for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i)); };
+            writeString(0, 'RIFF');
+            view.setUint32(4, 36 + pcmBuffer.byteLength, true);
+            writeString(8, 'WAVE');
+            writeString(12, 'fmt ');
+            view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+            view.setUint32(24, sampleRate, true); view.setUint32(28, sampleRate * 2, true);
+            view.setUint16(32, 2, true); view.setUint16(34, 16, true);
+            writeString(36, 'data');
+            view.setUint32(40, pcmBuffer.byteLength, true);
+            new Uint8Array(buffer, 44).set(new Uint8Array(pcmBuffer));
+            return buffer;
+        }
+
+        function playAIAudio() { if (state.activeAudioBlob) new Audio(state.activeAudioBlob).play(); }
+
+        // --- UI & STORAGE ---
+
+        function updateBudgetFromSettings() {
+            const newBudget = parseInt(document.getElementById('set-budget').value);
+            if(!isNaN(newBudget)) {
+                state.budget = newBudget;
+                localStorage.setItem('bush_buddy_budget', state.budget);
+                updateUI();
+            }
+        }
+
+        function saveSettings() {
+            state.settings.username = document.getElementById('set-username').value;
+            state.settings.difficulty = document.getElementById('set-difficulty').value;
+            state.settings.voice = document.getElementById('set-voice').value;
+            state.settings.gpsEnabled = document.getElementById('set-gps').checked;
+            localStorage.setItem('bush_buddy_settings', JSON.stringify(state.settings));
+            updateUI();
+        }
+
+        function loadSettings() {
+            const savedSettings = localStorage.getItem('bush_buddy_settings');
+            const savedBudget = localStorage.getItem('bush_buddy_budget');
+            
+            if(savedSettings) {
+                state.settings = JSON.parse(savedSettings);
+                document.getElementById('set-username').value = state.settings.username;
+                document.getElementById('set-difficulty').value = state.settings.difficulty;
+                document.getElementById('set-voice').value = state.settings.voice;
+                document.getElementById('set-gps').checked = state.settings.gpsEnabled;
+            }
+            if(savedBudget) {
+                state.budget = parseInt(savedBudget);
+            }
+        }
+
+        function resetData() {
+            localStorage.clear();
+            location.reload();
+        }
+
+        function showAIResult() {
+            document.getElementById('ai-main-container').classList.remove('hidden');
+            document.getElementById('audio-player').classList.add('hidden');
+        }
+
+        function typeText(text) {
+            const el = document.getElementById('ai-response-text');
+            el.innerText = "";
+            let i = 0;
+            const interval = setInterval(() => {
+                if(i < text.length) { el.innerText += text[i]; i++; }
+                else clearInterval(interval);
+            }, 20);
+        }
+
+        function renderShop() {
+            const container = document.getElementById('shop-items');
+            container.innerHTML = products.map(p => `
+                <div class="bg-black/40 p-5 rounded-3xl border border-white/5 flex justify-between items-center">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 bg-green-500/10 rounded-2xl flex items-center justify-center">
+                            <i class="fas ${p.icon} text-green-500"></i>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-black uppercase text-white">${p.name}</p>
+                            <p class="text-[9px] text-gray-500 font-bold">${p.weight}кг</p>
+                        </div>
+                    </div>
+                    <button onclick="buyItem(${p.id})" class="bg-green-500 text-black px-4 py-2 rounded-xl font-black text-[10px] uppercase">${p.price}₴</button>
+                </div>
+            `).join('');
+        }
+
+        function renderBackpack() {
+            const grid = document.getElementById('backpack-grid');
+            grid.innerHTML = '';
+            for(let i=0; i<16; i++){
+                const item = state.inventory[i];
+                const slot = document.createElement('div');
+                slot.className = `sotf-slot rounded-2xl aspect-square flex items-center justify-center relative cursor-pointer`;
+                if(item) {
+                    slot.innerHTML = `<i class="fas ${item.icon} text-xl text-green-500"></i>`;
+                    slot.onclick = () => removeItem(i);
+                } else {
+                    slot.innerHTML = `<div class="w-1 h-1 bg-white/10 rounded-full"></div>`;
+                }
+                grid.appendChild(slot);
+            }
+        }
+
+        function buyItem(id) {
+            const item = products.find(p => p.id === id);
+            if(state.budget >= item.price && state.inventory.length < 16) {
+                state.budget -= item.price;
+                localStorage.setItem('bush_buddy_budget', state.budget); // Зберегти після покупки
+                state.inventory.push(item);
+                updateUI(); renderBackpack();
+            }
+        }
+
+        function removeItem(idx) {
+            state.budget += Math.floor(state.inventory[idx].price * 0.8);
+            localStorage.setItem('bush_buddy_budget', state.budget); // Зберегти після продажу
+            state.inventory.splice(idx, 1);
+            updateUI(); renderBackpack();
+        }
+
+        function calculateWeight() {
+            return state.inventory.reduce((a, b) => a + b.weight, 0).toFixed(1);
+        }
+
+        function updateUI() {
+            document.getElementById('budget-display').innerText = `${state.budget}₴`;
+            const weight = calculateWeight();
+            document.getElementById('weight-display').innerText = `${weight} / 15кг`;
+            document.getElementById('weight-bar').style.width = `${Math.min((weight/15)*100, 100)}%`;
+            
+            if(!state.settings.gpsEnabled) {
+                document.getElementById('coords-display').innerText = "GPS ВИМКНЕНО";
+            } else {
+                document.getElementById('coords-display').innerText = state.coords;
+            }
+        }
+
+        function huntForMoney() { 
+            state.budget += 50; 
+            localStorage.setItem('bush_buddy_budget', state.budget);
+            updateUI(); 
+        }
+        function clearPack() { state.inventory = []; updateUI(); renderBackpack(); }
+    </script>
+</body>
+</html>
